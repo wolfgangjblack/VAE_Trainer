@@ -6,6 +6,11 @@ from torch import nn
 class VariationalAutoEncoder(nn.Module):
     def __init__(self, input_dim, h_dim = 200, z_dim = 20):
         super().__init__()
+        
+        self.input_dim = input_dim
+        self.h_dim = h_dim
+        self.z_dim = z_dim
+        
         ##Encoder
         self.img_2hid = nn.Linear(input_dim, h_dim)
         ##In the loss function we'll specify these with the KL divergence to try to push this towards a standard gaussian
@@ -40,7 +45,7 @@ class VariationalAutoEncoder(nn.Module):
         
         ##return mu, sigma for the KL divergence loss function and x for the reconstruction loss
         return x_reconstructed, mu, sigma
-    
+        
 if __name__ == "__main__":
     x = torch.randn(4, 28*28) #28 x 28 = 784
     vae = VariationalAutoEncoder(input_dim=784)
