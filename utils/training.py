@@ -1,9 +1,39 @@
 import os
 import math
+import json
 import torch
+import logging
 from tqdm import tqdm
+from datetime import datetime
 import torch.nn.functional as F
 from torchvision.utils import save_image
+
+def setup_logging(model, config):
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    log_dir = f"logs/run_{current_time}"
+    os.makedirs(log_dir, exist_ok=True)
+    
+    log_filename = os.path.join(log_dir, "training.log")
+    logging.basicConfig(filename=log_filename, level=logging.INFO, 
+                        format='%(asctime)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+
+    # Log model architecture
+    logging.info(f"Model Architecture:\n{model}")
+
+    # Log training configuration
+    logging.info(f"Training Configuration:\n{json.dumps(config, indent=2)}")
+
+    return log_dir
+
+def log_epoch(epoch, avg_loss, avg_kl_div, avg_reconstruct_loss, kld_weight):
+    logging.info(f"Epoch {epoch} | "
+                 f"Avg Loss: {avg_loss:.4f} | "
+                 f"Avg KL Div: {avg_kl_div:.4f} | "
+                 f"Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | "
+                 f"KLD weight: {kld_weight:.4f}")
+
+def log_generation(output_dir, num_examples):
+    logging.info(f"Generated {num_examples} images. Saved in {output_dir}")
 
 def cyclical_annealing_schedule(epoch, 
                                 cycle_length = 10):
@@ -36,7 +66,14 @@ def train_vae(model,
               NUM_EPOCHS,
               DEVICE,
               optimizer,
+              model_path = None,
               **kwargs):
+ 
+    if model_path is None:
+        model_path = os.path.join(model_path, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}", model.__class__.__name__)
+ 
+    ##Set up log
+    log_dir = setup_logging(model, kwargs)
     
     ##Set default values
     kld_weight = kwargs.get('kld_weight', 1.0)
@@ -78,4 +115,19 @@ def train_vae(model,
             
             loop.set_postfix(loss=f"{loss.item():.2f}", reconst_loss=f"{reconst_loss.item():.2f}", kl_div=f"{kl_div.item():.2f}")
         
-        print(f''' Epoch {epoch} | Avg Loss: {epoch_loss / len(train_loader.dataset):.4f} | Avg KL Div: {epoch_kl_div / len(train_loader.dataset):.4f}|Avg Reconstruct Loss: {epoch_reconstuct_loss / len(train_loader.dataset):.4f} | KLD weight {kld_weight} \n{'-'*50}''')
+        loop.close()
+        
+        log_epoch(epoch, epoch_loss / len(train_loader.dataset), epoch_kl_div / len(train_loader.dataset), epoch_reconstuct_loss / len(train_loader.dataset), kld_weight)
+        print(f''' Epoch {epoch} | Avg Loss: {epoch_loss / len(train_loader.dataset):.4f} | Avg KL Div: {epoch_kl_div / len(train_loader.dataset):.4f}|Avg Reconstruct Loss: {epoch_reconstuct_loss / len(train_loader.dataset):.4f} | KLD weight {kld_weight:.4f} \n{'-'*50}''')
+        
+        if (epoch + 1) % 10 == 0:
+            model_path = os.path.join(model_path, f"epoch_{epoch+1}.safetensors")
+            model.save(model_path)
+            logging.info(f"Model saved at {model_path}")
+    
+    #Save final model
+    model_path = os.path.join(model_path, f"final_model.safetensors")
+    model.save(model_path)
+    logging.info(f"Final Model saved at {model_path}")
+    
+    return log_dir

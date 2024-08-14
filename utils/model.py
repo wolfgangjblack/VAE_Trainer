@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from torchvision.utils import save_image
+from safetensors.torch import save_file, load_file
 
 #Input img -> hidden dim -> mean, std, -> parametrization trick -> Decoder -> output img
 class VariationalAutoEncoder(nn.Module):
@@ -208,7 +209,34 @@ class ResNetVAE(nn.Module):
 
         print("Generated images of shape: ", out.shape)
         return generated_images
-
+    
+    def save(self, path):
+        
+        os.makedirs(os.path.dirname(path),
+                    exist_ok=True)
+        
+        state_dict = self.state_dict()
+        
+        save_file(state_dict, path)
+        
+        print(f"Model saved at {path}")
+        
+    @classmethod
+    def load(cls, path, device):
+        
+        state_dict = load_file(path)
+        
+        in_channels = state_dict['encoder.0.weight'].size(1)
+        latent_dim = state_dict['fc_mu.weight'].size(0)
+        
+        model = cls(in_channels=in_channels,
+                    latent_dim=latent_dim)
+        
+        model.load_state_dict(state_dict)
+        
+        model.to(device)
+        print(f"Model loaded from {path}")
+        return model
 
 if __name__ == "__main__":
     x = torch.randn(4, 28*28) #28 x 28 = 784
