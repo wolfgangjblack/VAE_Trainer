@@ -207,7 +207,6 @@ class ResNetVAE(nn.Module):
             # Save the generated image
             save_image(out, f"{output_dir}/generated_ex{i}.png")
 
-        print("Generated images of shape: ", out.shape)
         return generated_images
     
     def save(self, path):
