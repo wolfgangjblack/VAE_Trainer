@@ -8,7 +8,7 @@ def train_vae(model, train_loader, NUM_EPOCHS, DEVICE, loss_fn, optimizer):
     INPUT_DIM = model.input_dim
     
     for epoch in range(NUM_EPOCHS):
-        model.train()
+        # model.train()
         epoch_loss = 0
         epoch_reconst_loss = 0
         epoch_kl_div = 0
@@ -19,7 +19,7 @@ def train_vae(model, train_loader, NUM_EPOCHS, DEVICE, loss_fn, optimizer):
             x_reconst, mu, sigma = model(x)
             
             ## Compute Loss
-            reconst_loss = loss_fn(x_reconst, x)
+            reconst_loss = loss_fn(x_reconst, x)/x.size(0) #reconstruction loss
             ##KL loss is kullback-leibler divergence
             
             kl_div = -0.5 * torch.sum(1+ torch.log(sigma.pow(2)) - mu.pow(2) - sigma.pow(2))            
@@ -42,11 +42,13 @@ def train_vae(model, train_loader, NUM_EPOCHS, DEVICE, loss_fn, optimizer):
         avg_loss = loss / len(train_loader)
         avg_reconst_loss = epoch_reconst_loss / len(train_loader)
         avg_kl_div = epoch_kl_div / len(train_loader)
+        
         # Print epoch summary
         print(f"Average Loss: {avg_loss:.4f}")
         print(f"Average Reconstruction Loss: {avg_reconst_loss:.4f}")
         print(f"Average KL Divergence: {avg_kl_div:.4f}")
         print("-" * 50)
+
 
 def inference(model, dataset, digit, num_examples = 1, output_dir = "outputs/"):
     """
@@ -62,13 +64,15 @@ def inference(model, dataset, digit, num_examples = 1, output_dir = "outputs/"):
         num_examples (int, optional): _description_. Defaults to 1.
     """
     
+    ch, w, h = dataset[0][0].shape 
+    
     images = []
     idx = 0
     for x,y in dataset:
         if y == idx:
             images.append(x)
             idx +=1
-        if idx == 500:
+        if idx == 1000:
             break
         
     encodings_digit = []
@@ -86,6 +90,6 @@ def inference(model, dataset, digit, num_examples = 1, output_dir = "outputs/"):
         epsilon = torch.randn_like(sigma)
         z = mu + sigma*epsilon
         out = model.decode(z)
-        out = out.view(-1, 1, 28, 28)
+        out = out.view(-1, ch, w, h)
         save_image(out, f"{output_dir}/generated_{digit}_ex{example}.png")
     
