@@ -2,7 +2,7 @@ import torch
 import torchvision.datasets as datasets
 from torch import nn
 import torch.nn.functional as F
-from utils.model import VariationalAutoEncoder
+from utils.model import VariationalAutoEncoder, ResNetVAE
 from utils.training import train_vae, inference
 from torchvision import transforms
 from torch.utils.data import DataLoader
@@ -12,8 +12,11 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 print(DEVICE)
 
-NUM_EPOCHS = 500
-BATCH_SIZE = 256
+NUM_EPOCHS = 100
+
+##Make this smaller to add more variation
+BATCH_SIZE = 64
+
 LR_RATE = 1e-4 #Karpathy Constant 3e-4
 
 #Dataset - MNIST
@@ -35,19 +38,21 @@ INPUT_DIM = ch * w * h
 
 train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-model = VariationalAutoEncoder(INPUT_DIM).to(DEVICE)
+# model = VariationalAutoEncoder(INPUT_DIM).to(DEVICE)
+model = ResNetVAE().to(DEVICE)
 
 optimizer = torch.optim.Adam(model.parameters(), lr=LR_RATE)
-loss_fn = nn.BCELoss(reduction="sum") #reconstruction loss
-# loss_fn = F.mse_loss #reconstruction loss
-##KL loss is kullback-leibler divergence
 
 print('Training')
-train_vae(model, train_loader, NUM_EPOCHS, DEVICE, loss_fn, optimizer)
+anneal_config = {'use_cyclical_annealing': False}
+train_vae(model, train_loader, NUM_EPOCHS, DEVICE, optimizer, **anneal_config)
 
 model = model.to("cpu")
-outs = {}
-print("Generating images")
-for digit in range(10):
-    inference(model, dataset, digit, num_examples=5, output_dir="output/cifar100_500epochs/")
+single_image = dataset[0][0]
+model.generate(single_image, num_examples=5, output_dir="output/cifar100_100epochs_resnetvae/")
+
+# outs = {}
+# print("Generating images")
+# for digit in range(10):
+#     inference(model, dataset, digit, num_examples=5, output_dir="output/cifar100_500epochs/")
     
