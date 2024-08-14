@@ -3,7 +3,7 @@ import torchvision.datasets as datasets
 from torch import nn
 import torch.nn.functional as F
 from utils.model import VariationalAutoEncoder, ResNetVAE
-from utils.training import train_vae, inference
+from utils.training import train_vae
 from torchvision import transforms
 from torch.utils.data import DataLoader
 
@@ -21,6 +21,8 @@ LR_RATE = 1e-4 #Karpathy Constant 3e-4
 
 #Dataset - MNIST
 # dataset = datasets.MNIST(root="dataset/", train=True, transform=transforms.ToTensor(), download=True)
+
+#Dataset - MNIST Fashion
 # dataset = datasets.FashionMNIST(root="dataset/", train=True, transform=transforms.ToTensor(), download=True)
 ##Captial T in ToTensor divides by 255
 
@@ -44,7 +46,7 @@ model = ResNetVAE().to(DEVICE)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR_RATE)
 
 print('Training')
-anneal_config = {'use_cyclical_annealing': False}
+anneal_config = {'use_cyclical_annealing': True, 'cycle_length': 25, 'resnet': True}
 train_vae(model, train_loader, NUM_EPOCHS, DEVICE, optimizer, **anneal_config)
 
 model = model.to("cpu")

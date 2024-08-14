@@ -46,7 +46,8 @@ class VariationalAutoEncoder(nn.Module):
         return self.decoder(z)
     
     def forward(self, x):
-        mu, sigma = self.encode(x.view(-1, self.input_dim))
+        x = x.view(-1, self.input_dim)
+        mu, sigma = self.encode(x)
         
         # Reparameterization trick
         epsilon = torch.randn_like(sigma)
@@ -54,8 +55,26 @@ class VariationalAutoEncoder(nn.Module):
         
         x_reconstructed = self.decode(z_reparametrized)
         return x_reconstructed, mu, sigma
-
-
+    
+    def generate(self, input, digit, num_examples=1, output_dir="outputs/"):
+        os.makedirs(output_dir, exist_ok=True)
+        ch, w, h = input.shape
+        
+        images = []
+        
+        with torch.no_grad():
+            mu, sigma = self.encode(input.view(1, -1))
+        
+        for i in range(num_examples):
+            epsilon = torch.randn_like(sigma)
+            z = mu + sigma * epsilon
+            out = self.decode(z)
+            out = out.view(ch, w, h)
+            images.append(out)
+            save_image(out, f"{output_dir}/generated_{digit}_ex{i}.png")
+        
+        return images
+        
 class ResidualBlock(nn.Module):
     
     def __init__(self,
