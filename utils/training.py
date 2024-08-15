@@ -96,8 +96,10 @@ def train_vae(model,
     ## Log some information
     logging.info(f"Training for {NUM_EPOCHS} Epochs")
     logging.info(f"Training on Dataset: {train_loader.dataset.__class__.__name__}")
-    logging.info(f'Dataset has {len(train_loader.dataset)} samples of size {train_loader.dataset[0][0].shape}\n')
-    
+    logging.info(f'Dataset has {len(train_loader.dataset)} samples of size {train_loader.dataset[0][0].shape}')
+    logging.info(f"Using Early Stopping: {early_stopping}")
+    logging.info(f"Using Cyclical Annealing: {use_cyclical_annealing}")
+    logging.info(f"Using Loss Function: {loss_fn} for reconstruction\n")
     
     best_loss = float('inf')
     patience = 0
@@ -122,6 +124,7 @@ def train_vae(model,
             
             ## If we are using resnet model, we use MSE loss, otherwise we use BCE loss. BCE Loss is for really simple models
             if loss_fn == 'mse':
+                
                 loss, reconst_loss, kl_div = mse_vae_loss(recon_batch, data, mu, logvar, kld_weight)
             else:
                 loss, reconst_loss, kl_div = bce_vae_loss(recon_batch, data, mu, logvar, kld_weight)

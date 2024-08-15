@@ -176,9 +176,7 @@ class ResNetVAE(nn.Module):
     def generate(self,
                  input_data,
                  num_examples,
-                 output_dir = 'output/'):
-        
-        os.makedirs(output_dir, exist_ok=True)
+                 ):
         
         input_data = input_data.to(next(self.parameters()).device)
         
@@ -204,9 +202,6 @@ class ResNetVAE(nn.Module):
             out = torch.clamp(out, 0, 1)
             generated_images.append(out)
                     
-            # Save the generated image
-            save_image(out, f"{output_dir}/generated_ex{i}.png")
-
         return generated_images
     
     def save(self, path):
