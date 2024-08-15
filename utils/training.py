@@ -12,7 +12,7 @@ def setup_logging(model, current_time, config):
 
     log_dir = config.get(os.path.join("logs", current_time),os.path.join('./logs/', current_time, model.__class__.__name__))
 
-    log_dir = f"logs/r{current_time}"
+    log_dir = f"logs/{current_time}"
     os.makedirs(log_dir, exist_ok=True)
     
     log_filename = os.path.join(log_dir, "training.log")
@@ -27,12 +27,22 @@ def setup_logging(model, current_time, config):
 
     return log_dir
 
-def log_epoch(epoch, avg_loss, avg_kl_div, avg_reconstruct_loss, kld_weight):
-    logging.info(f"Epoch {epoch} | "
-                 f"Avg Loss: {avg_loss:.4f} | "
-                 f"Avg KL Div: {avg_kl_div:.4f} | "
-                 f"Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | "
-                 f"KLD weight: {kld_weight:.4f}")
+def log_epoch(epoch, avg_loss, avg_kl_div, avg_reconstruct_loss, kld_weight, patience, early_stopping_patience):
+    
+    if early_stopping_patience == None:
+        logging.info(f"Epoch {epoch} | "
+                    f"Avg Loss: {avg_loss:.4f} | "
+                    f"Avg KL Div: {avg_kl_div:.4f} | "
+                    f"Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | "
+                    f"KLD weight: {kld_weight:.4f}")
+    else:
+        logging.info(f"Epoch {epoch} | "
+                    f"Avg Loss: {avg_loss:.4f} | "
+                    f"Avg KL Div: {avg_kl_div:.4f} | "
+                    f"Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | "
+                    f"KLD weight: {kld_weight:.4f} | " 
+                    f"Patience: {patience} | " 
+                    f"Early Stopping Limit: {early_stopping_patience}")
 
 def log_generation(output_dir, num_examples):
     logging.info(f"Generated {num_examples} images. Saved in {output_dir}")
@@ -73,7 +83,8 @@ def train_vae(model,
     
     start_time = f"{datetime.now().strftime('%Y_%m_%d_%H_%M')}"
     model_path = kwargs.get("model_path",os.path.join('./models/', start_time, model.__class__.__name__))
- 
+    
+    save_frequency = kwargs.get('save_frequency', 10)
     ##Set up logging - this keeps track of our model training
     log_dir = setup_logging(model, start_time, kwargs)
     
@@ -90,7 +101,7 @@ def train_vae(model,
     
     ##Early Stopping Parameters
     early_stopping = kwargs.get('early_stopping', False)
-    early_stopping_patience = kwargs.get('early_stopping_patience', 5)
+    early_stopping_patience = kwargs.get('early_stopping_patience', None)
     early_stopping_threshold = kwargs.get('early_stopping_threshold', 0.001) 
     
     ## Log some information
@@ -124,7 +135,6 @@ def train_vae(model,
             
             ## If we are using resnet model, we use MSE loss, otherwise we use BCE loss. BCE Loss is for really simple models
             if loss_fn == 'mse':
-                
                 loss, reconst_loss, kl_div = mse_vae_loss(recon_batch, data, mu, logvar, kld_weight)
             else:
                 loss, reconst_loss, kl_div = bce_vae_loss(recon_batch, data, mu, logvar, kld_weight)
@@ -146,10 +156,10 @@ def train_vae(model,
         avg_kl_div = epoch_kl_div / len(train_loader.dataset)
         avg_reconstruct_loss = epoch_reconstruct_loss / len(train_loader.dataset)
         
-        log_epoch(epoch, avg_loss, avg_kl_div, avg_reconstruct_loss , kld_weight)
-        print(f''' Epoch {epoch} | Avg Loss: {avg_loss:.4f} | Avg KL Div: {avg_kl_div:.4f}|Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | KLD weight {kld_weight:.4f} \n{'-'*50}''')
+        print(f'''Epoch {epoch} | Avg Loss: {avg_loss:.4f} | Avg KL Div: {avg_kl_div:.4f}|Avg Reconstruct Loss: {avg_reconstruct_loss:.4f} | KLD weight {kld_weight:.4f} | Patience: {patience} | Early Stopping Limit: {early_stopping_patience}''')
+        log_epoch(epoch, avg_loss, avg_kl_div, avg_reconstruct_loss , kld_weight, patience, early_stopping_patience)
         
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % save_frequency == 0:
             model.save(os.path.join(model_path, f"epoch_{epoch+1}.safetensors"))
             logging.info(f"Model saved at {os.path.join(model_path, f"epoch_{epoch+1}.safetensors")}")
         
